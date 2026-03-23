@@ -11,7 +11,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     Handhabt CRUD für Boards (Checkliste: ModelViewSet verwenden).
     """
     serializer_class = BoardSerializer  # (many=True)
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]  # IsStaffOrReadOnly
 
     def get_queryset(self):
         # Zeige nur Boards an, bei denen der User Owner oder Mitglied ist (für dashboard.js)
