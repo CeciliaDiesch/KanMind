@@ -49,3 +49,6 @@ build/
 
 # Project-internal docs
 tools.md
+boards_app/api/tools.md
+boards_app/EndpointDoku.md
+tasks_app/EndpointDoku.md

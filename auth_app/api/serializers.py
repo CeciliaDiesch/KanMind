@@ -1,7 +1,20 @@
 from rest_framework import serializers
+from rest_framework.authtoken.serializers import AuthTokenSerializer
 from auth_app.models import UserProfile
 from django.contrib.auth.models import User
-from auth_app.models import UserProfile
+from django.contrib.auth import authenticate
+
+
+class EmailAuthTokenSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        user = authenticate(username=data['email'], password=data['password'])
+        if not user:
+            raise serializers.ValidationError('Invalid email or password.')
+        data['user'] = user
+        return data
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -20,8 +33,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password',
-                  'repeated_password', 'fullname']
+        fields = ['email', 'password', 'repeated_password', 'fullname']
 
     def validate(self, data):
         if data['password'] != data['repeated_password']:
@@ -34,15 +46,12 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         fullname = validated_data.pop('fullname', '')
-        name_parts = fullname.split(' ', 1)
-        first_name = name_parts[0]
-        last_name = name_parts[1] if len(name_parts) > 1 else ''
+        validated_data.pop('repeated_password')
         user = User.objects.create_user(
-            username=validated_data['username'],
+            username=validated_data['email'],
             email=validated_data['email'],
             password=validated_data['password'],
-            first_name=first_name,
-            last_name=last_name
+            first_name=fullname,
         )
 
         UserProfile.objects.create(user=user)

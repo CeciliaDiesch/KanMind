@@ -1,32 +1,88 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from ..models import Task
-from .serializers import TaskSerializer
+from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied, NotFound
+from django.db.models import Q
+from ..models import Task, Comment
+from boards_app.models import Board
+from .serializers import TaskSerializer, CommentSerializer
 
 
 class TaskViewSet(viewsets.ModelViewSet):
-    """
-    Zuständig für alle Task-Operationen (Checkliste: Ressourcenorientiert).
-    """
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Task.objects.all()
+        return Task.objects.filter(
+            Q(board__owner=user) | Q(board__members=user)
+        ).distinct()
 
-        # Filter-Logik für dashboard.js (assigned vs reviewer)
-        assigned_only = self.request.query_param.get('assigned')
-        if assigned_only:
-            queryset = queryset.filter(assignee=user)
+    def get_object(self):
+        try:
+            task = Task.objects.get(pk=self.kwargs['pk'])
+        except Task.DoesNotExist:
+            raise NotFound('Task nicht gefunden.')
+        user = self.request.user
+        if task.board.owner != user and not task.board.members.filter(pk=user.pk).exists():
+            raise PermissionDenied('Du bist kein Mitglied dieses Boards.')
+        return task
 
-        reviewer_only = self.request.query_param.get('reviewer')
-        if reviewer_only:
-            queryset = queryset.filter(reviewer=user)
+    @action(detail=False, methods=['get'], url_path='assigned-to-me')
+    def assigned_to_me(self, request):
+        tasks = Task.objects.filter(assignee=request.user)
+        serializer = self.get_serializer(tasks, many=True)
+        return Response(serializer.data)
 
-        # Filter für board.js (alle Tasks eines bestimmten Boards)
-        board_id = self.request.query_param.get('board')
-        if board_id:
-            queryset = queryset.filter(board_id=board_id)
+    @action(detail=False, methods=['get'], url_path='reviewing')
+    def reviewing(self, request):
+        tasks = Task.objects.filter(reviewer=request.user)
+        serializer = self.get_serializer(tasks, many=True)
+        return Response(serializer.data)
 
-        return queryset
+    def perform_create(self, serializer):
+        board = serializer.validated_data.get('board')
+        user = self.request.user
+        if board.owner != user and not board.members.filter(pk=user.pk).exists():
+            raise PermissionDenied('Du bist kein Mitglied dieses Boards.')
+        serializer.save(created_by=user)
+
+    def partial_update(self, request, *args, **kwargs):
+        request.data.pop('board', None)
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        task = self.get_object()
+        user = request.user
+        if task.created_by != user and task.board.owner != user:
+            raise PermissionDenied(
+                'Nur der Ersteller oder der Board-Eigentümer kann diese Task löschen.')
+        task.delete()
+        return Response(None, status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['get', 'post'], url_path='comments')
+    def comments(self, request, pk=None):
+        task = self.get_object()
+        if request.method == 'GET':
+            comments = task.comments.all()
+            serializer = CommentSerializer(comments, many=True)
+            return Response(serializer.data)
+        serializer = CommentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(task=task, author=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'], url_path='comments/(?P<comment_id>[^/.]+)')
+    def delete_comment(self, request, pk=None, comment_id=None):
+        task = self.get_object()
+        try:
+            comment = Comment.objects.get(pk=comment_id, task=task)
+        except Comment.DoesNotExist:
+            raise NotFound('Kommentar nicht gefunden.')
+        if comment.author != request.user:
+            raise PermissionDenied(
+                'Nur der Ersteller kann diesen Kommentar löschen.')
+        comment.delete()
+        return Response(None, status=status.HTTP_204_NO_CONTENT)
