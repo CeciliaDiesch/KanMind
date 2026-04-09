@@ -6,10 +6,13 @@ from django.contrib.auth import authenticate
 
 
 class EmailAuthTokenSerializer(serializers.Serializer):
+    """Serializer for user authentication via email."""
+
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
+        """Verify credentials and return the authenticated user object."""
         user = authenticate(username=data['email'], password=data['password'])
         if not user:
             raise serializers.ValidationError('Invalid email or password.')
@@ -18,7 +21,8 @@ class EmailAuthTokenSerializer(serializers.Serializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    # Zeigt den Namen statt nur die ID
+    """Serializer for reading and updating user profile data."""
+
     username = serializers.ReadOnlyField(source='user.username')
 
     class Meta:
@@ -27,6 +31,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
+    """Serializer for new user registration."""
+
     fullname = serializers.CharField(write_only=True)
     repeated_password = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True)
@@ -36,6 +42,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         fields = ['email', 'password', 'repeated_password', 'fullname']
 
     def validate(self, data):
+        """Ensure passwords match and email is not already registered."""
         if data['password'] != data['repeated_password']:
             raise serializers.ValidationError("Passwords do not match.")
 
@@ -45,6 +52,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
+        """Create a new User and associated UserProfile."""
         fullname = validated_data.pop('fullname', '')
         validated_data.pop('repeated_password')
         user = User.objects.create_user(

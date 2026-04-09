@@ -4,6 +4,8 @@ from ..models import Task, Comment
 
 
 class UserMiniSerializer(serializers.ModelSerializer):
+    """Minimal user serializer exposing id, email and full name."""
+
     fullname = serializers.ReadOnlyField(source='first_name')
 
     class Meta:
@@ -12,6 +14,7 @@ class UserMiniSerializer(serializers.ModelSerializer):
 
 
 class TaskSerializer(serializers.ModelSerializer):
+    """Serializer for task list, create and update endpoints."""
     assignee = UserMiniSerializer(read_only=True)
     reviewer = UserMiniSerializer(read_only=True)
     assignee_id = serializers.PrimaryKeyRelatedField(
@@ -31,10 +34,12 @@ class TaskSerializer(serializers.ModelSerializer):
                   'due_date', 'comments_count']
 
     def get_comments_count(self, obj):
+        """Return the total number of comments on this task."""
         return obj.comments.count()
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    """Serializer for task comments."""
     author = serializers.ReadOnlyField(source='author.first_name')
 
     class Meta:
