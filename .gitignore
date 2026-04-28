@@ -52,3 +52,6 @@ tools.md
 boards_app/api/tools.md
 boards_app/EndpointDoku.md
 tasks_app/EndpointDoku.md
+
+# Migrations (regenerate locally with makemigrations)
+*/migrations/0*.py

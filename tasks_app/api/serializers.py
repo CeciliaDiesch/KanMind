@@ -1,20 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from ..models import Task, Comment
-
-
-class UserMiniSerializer(serializers.ModelSerializer):
-    """Minimal user serializer exposing id, email and full name."""
-
-    fullname = serializers.ReadOnlyField(source='first_name')
-
-    class Meta:
-        model = User
-        fields = ['id', 'email', 'fullname']
+from auth_app.api.serializers import UserMiniSerializer
 
 
 class TaskSerializer(serializers.ModelSerializer):
     """Serializer for task list, create and update endpoints."""
+
     assignee = UserMiniSerializer(read_only=True)
     reviewer = UserMiniSerializer(read_only=True)
     assignee_id = serializers.PrimaryKeyRelatedField(
@@ -35,11 +27,13 @@ class TaskSerializer(serializers.ModelSerializer):
 
     def get_comments_count(self, obj):
         """Return the total number of comments on this task."""
+
         return obj.comments.count()
 
 
 class CommentSerializer(serializers.ModelSerializer):
     """Serializer for task comments."""
+
     author = serializers.ReadOnlyField(source='author.first_name')
 
     class Meta:

@@ -5,6 +5,16 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 
 
+class UserMiniSerializer(serializers.ModelSerializer):
+    """Minimal user serializer exposing id, email and full name."""
+
+    fullname = serializers.ReadOnlyField(source='first_name')
+
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'fullname']
+
+
 class EmailAuthTokenSerializer(serializers.Serializer):
     """Serializer for user authentication via email."""
 
@@ -17,6 +27,7 @@ class EmailAuthTokenSerializer(serializers.Serializer):
         if not user:
             raise serializers.ValidationError('Invalid email or password.')
         data['user'] = user
+
         return data
 
 
@@ -43,6 +54,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Ensure passwords match and email is not already registered."""
+
         if data['password'] != data['repeated_password']:
             raise serializers.ValidationError("Passwords do not match.")
 
@@ -53,6 +65,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Create a new User and associated UserProfile."""
+
         fullname = validated_data.pop('fullname', '')
         validated_data.pop('repeated_password')
         user = User.objects.create_user(
@@ -63,4 +76,5 @@ class RegistrationSerializer(serializers.ModelSerializer):
         )
 
         UserProfile.objects.create(user=user)
+
         return user

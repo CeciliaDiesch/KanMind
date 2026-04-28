@@ -6,6 +6,7 @@ from tasks_app.api.serializers import TaskSerializer, UserMiniSerializer
 
 class BoardSerializer(serializers.ModelSerializer):
     """Serializer for board list and create endpoints."""
+
     owner_id = serializers.ReadOnlyField(source='owner.id')
     member_count = serializers.SerializerMethodField()
     ticket_count = serializers.IntegerField(
@@ -28,19 +29,23 @@ class BoardSerializer(serializers.ModelSerializer):
 
     def get_member_count(self, obj):
         """Return the number of members in the board."""
+
         return obj.members.count()
 
     def get_tasks_to_do_count(self, obj):
         """Return the number of tasks with status 'to-do'."""
+
         return obj.tasks.filter(status='to-do').count()
 
     def get_tasks_high_prio_count(self, obj):
         """Return the number of high-priority tasks."""
+
         return obj.tasks.filter(priority='high').count()
 
 
 class BoardDetailSerializer(serializers.ModelSerializer):
     """Serializer for the board detail endpoint, including members and tasks."""
+
     owner_id = serializers.ReadOnlyField(source='owner.id')
     members = UserMiniSerializer(many=True, read_only=True)
     tasks = TaskSerializer(many=True, read_only=True)
@@ -52,6 +57,7 @@ class BoardDetailSerializer(serializers.ModelSerializer):
 
 class BoardPatchSerializer(serializers.ModelSerializer):
     """Serializer for partial board updates, e.g. updating members."""
+
     owner_data = UserMiniSerializer(source='owner', read_only=True)
     members_data = UserMiniSerializer(
         source='members', many=True, read_only=True)
